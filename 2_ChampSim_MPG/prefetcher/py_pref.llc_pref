@@ -1,0 +1,123 @@
+#include "cache.h"
+#include <Python.h>
+#include <stdio.h>
+
+#define LENGTH 9
+#define DEGREE 2
+#undef DEGREE
+
+//#define PYTHON_ROOT "sys.path.append('../1_py_models')"
+// #define PYTHON_ROOT "sys.path.append('../1_py_models/test/')"
+// #define PYTHON_FILE "py_prefetcher"
+// #define PYTHON_FUNC "py_prefetcher"
+
+//#define PYTHON_ROOT "sys.path.append('../1_CSTP_controller')"
+#define PYTHON_ROOT "sys.path.append('../../4_CSTP_controller')"
+//#define PYTHON_ROOT "sys.path.append('../1_py_models/transfetch')"
+#define PYTHON_FILE "cstp_controller"
+#define PYTHON_FUNC "cstp_controller"
+
+PyObject *pName, *pModule, *pDict, *pFunc, *pArgs, *pRet, *Item ;
+
+uint64_t Q_Addr[LENGTH]={0};
+uint64_t Q_PC[LENGTH]={0};
+
+void CACHE::llc_prefetcher_initialize() 
+{
+	//printf("llc_prefetcher_initialize start!\n");
+	
+	Py_Initialize();
+	if( !Py_IsInitialized() ){
+		printf("Initialize failed\n");
+	}
+	PyRun_SimpleString("import sys");
+    PyRun_SimpleString(PYTHON_ROOT);
+	//printf("llc_prefetcher_initialize good111\n");
+
+	//pName = PyUnicode_DecodeFSDefault("py_prefetcher");
+	pName = PyUnicode_DecodeFSDefault(PYTHON_FILE);
+	pModule = PyImport_Import(pName);
+	if ( !pModule ){
+	    cout<<"error: no module"<<endl;
+	}
+	pDict = PyModule_GetDict(pModule);
+	if ( !pDict ){
+        cout<<"no pDict"<<endl;
+	}
+	printf("llc_prefetcher_initialized\n");
+	//pFunc = PyDict_GetItemString(pDict, "py_prefetcher");
+	pFunc = PyDict_GetItemString(pDict, PYTHON_FUNC);
+	if(!pFunc)
+		cout<<"no pFunc"<<endl;
+	if(!PyCallable_Check(pFunc))
+		cout<<"PyCallable_Check"<<endl;
+	if ( !pFunc || !PyCallable_Check(pFunc) ){
+	    cout<<"error: py not callable"<<endl;
+	}
+
+	//printf("llc_prefetcher_initialize good\n");
+    // for (int i=0;i<LENGTH;i++){
+    //     Q_Addr[i]=0;
+    //     Q_PC[i]=0;
+    // }
+}
+
+uint32_t CACHE::llc_prefetcher_operate(uint64_t addr, uint64_t ip, uint8_t cache_hit, uint8_t type, uint32_t metadata_in, uint64_t instr_id, uint64_t curr_cycle)
+{
+    // for(int i=LENGTH-1; i>0; i--){
+    //     Q_Addr[i+1]=Q_Addr[i];
+    //     Q_PC[i+1]=Q_PC[i];
+    // }
+	//0 old-> LENGTH new
+	for (int i=0; i<LENGTH-1;i++){
+		Q_Addr[i]=Q_Addr[i+1];
+		Q_PC[i]=Q_PC[i+1];
+	}
+
+    Q_Addr[LENGTH-1]=addr;
+    Q_PC[LENGTH-1]=ip;
+
+	PyObject *PyList = PyList_New(LENGTH);
+	PyObject *PyList2 = PyList_New(LENGTH);
+	pArgs= PyTuple_New(2);
+
+	for(int i = 0; i<PyList_Size(PyList);i++){
+		PyList_SetItem(PyList, i, PyLong_FromLong(Q_Addr[i]));
+		PyList_SetItem(PyList2, i, PyLong_FromLong(Q_PC[i]));
+        //printf(" ===========> Q_Addr[%d] = %ld <===========\n",i, Q_Addr[i]);
+	}
+	PyTuple_SetItem(pArgs, 0, PyList);
+	PyTuple_SetItem(pArgs, 1, PyList2);
+	pRet = PyObject_CallObject(pFunc, pArgs);     // call the function
+
+	if (PyList_Check(pRet)){
+		int Ret_size=PyList_Size(pRet);
+#ifdef DEGREE
+        if(Ret_size>DEGREE) Ret_size=DEGREE;
+#endif
+		for (int i=0; i< Ret_size; i++){
+			Item = PyList_GetItem(pRet,i);
+			long result;
+			PyArg_Parse(Item, "l", &result);
+            //printf(" ===========> cpp result = %ld <===========\n", result);
+            prefetch_line(ip, addr, result, FILL_LLC, 0);
+		}
+	}
+	else{
+		long result = PyLong_AsLong(pRet);            // get the return value by pRet
+        prefetch_line(ip, addr, result, FILL_LLC, 0);
+        //printf(" ===========> cpp result = %ld <===========\n", result);
+	}
+
+  return metadata_in;
+}
+
+uint32_t CACHE::llc_prefetcher_cache_fill(uint64_t addr, uint32_t set, uint32_t way, uint8_t prefetch, uint64_t evicted_addr, uint32_t metadata_in)
+{
+  return metadata_in;
+}
+
+void CACHE::llc_prefetcher_final_stats()
+{
+    Py_Finalize();
+}
