@@ -22,11 +22,11 @@ def data_generator(file_path,NUM,output_file,Read_Pickle=False,only_val=False):
     df_g = preprocessing(read_load_trace_data(file_path[1],0,NUM)[1])
 
     
-#    df_train_s, df_test_s = train_test_split(df_s, test_size=0.5)
-#    df_train_g, df_test_g = train_test_split(df_g, test_size=0.5)
+    df_train_s, df_test_s = train_test_split(df_s, test_size=0.5)
+    df_train_g, df_test_g = train_test_split(df_g, test_size=0.5)
 
-    df_train_s, df_test_s = train_test_split(df_s)
-    df_train_g, df_test_g = train_test_split(df_g)
+#    df_train_s, df_test_s = train_test_split(df_s)
+#    df_train_g, df_test_g = train_test_split(df_g)
 
     df_train_s.to_pickle(output_file+'.scatter'+".train.pkl")
     print ("output to pickle: ", output_file+'.scatter'+".train.pkl")

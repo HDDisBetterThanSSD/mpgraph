@@ -26,19 +26,19 @@ SKIP_NUM = 0
 
 TRANSITION_NUM=10
 
-WINDOW_SIZE=360
-STATE_SIZE = 90
+WINDOW_SIZE=480
+STATE_SIZE = 120
 
-THREAD_R=0.95
+THREAD_R=0.6
 SOFT_WINDOW = WINDOW_SIZE+STATE_SIZE
 
 #%%
 
 def ks_detection_D(model_type, X):
     if model_type == "std":
-        kswin =KSWIN_std_D(alpha=0.000000001, window_size=WINDOW_SIZE,  stat_size=STATE_SIZE, seed=1)
+        kswin =KSWIN_std_D(alpha=0.001, window_size=WINDOW_SIZE,  stat_size=STATE_SIZE, seed=1)
     elif model_type == "soft":
-        kswin =KSWIN_soft_D(alpha=0.000000001, window_size=WINDOW_SIZE,  stat_size=STATE_SIZE, seed=1, th_r=THREAD_R)
+        kswin =KSWIN_soft_D(alpha=0.001, window_size=WINDOW_SIZE,  stat_size=STATE_SIZE, seed=1, th_r=THREAD_R)
     else:
         print("error in k-s test model type.")
         return

@@ -47,7 +47,7 @@ context_gamma=0.2
 
 #%%% training
 batch_size=128
-epochs=20
+epochs=100
 lr = 2e-4
 early_stop=20
 #%%% scheduler
